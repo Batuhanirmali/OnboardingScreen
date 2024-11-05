@@ -5,144 +5,112 @@
 //  Created by Talha Batuhan Irmalı on 4.11.2024.
 //
 import SwiftUI
-import AVKit
 
 struct OnboardingView: View {
-    @State private var isPlaying = false
-    @State private var players: [AVPlayer] = []
-    @State private var selectedOption: String = "Monthly"
+    @State private var currentIndex: Int = 0
+    let images = ["meal_image", "nutrition_analysis_image", "weight_goal_image"]
+    let titles = ["Meal Plan", "Nutrition Analysis", "Weight Goal"]
+    let descriptions = [
+        "Just snap a quick photo of your meal and we'll do the rest",
+        "Analyze your daily nutrition intake.",
+        "Set and achieve your weight goals."
+    ]
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .bottom) {
-                TabView {
-                    ForEach(players.indices, id: \.self) { index in
-                        VideoPlayer(player: players[index])
-                            .scaledToFill() // Videoyu dolduracak şekilde ölçeklendir
-                            .frame(width: geometry.size.width, height: geometry.size.height * 0.5) // Ekranın tamamını kapla
-                            .ignoresSafeArea(edges: .all) // Tüm kenarları ihlal et
-                            .onAppear {
-                                players[index].play()
-                                isPlaying = true
-                            }
-                            .onDisappear {
-                                players[index].pause()
-                                isPlaying = false
-                            }
-                    }
-                }
-                .tabViewStyle(PageTabViewStyle())
+        ZStack {
+            GeometryReader { geometry in
+                Image(images[currentIndex])
+                    .resizable()
+                    .scaledToFill()
+                    .edgesIgnoringSafeArea(.top)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.5), value: currentIndex)
+                    .frame(width: geometry.size.width, height: geometry.size.height * 0.7)
+                
+                VStack {
+                    Spacer()
+                    
+                    VStack {
+                        TabView(selection: $currentIndex) {
+                            ForEach(0..<images.count, id: \.self) { index in
+                                VStack(spacing: 16) {
+                                    Text(titles[index])
+                                        .font(.title)
+                                        .fontWeight(.bold)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.top, 20)
+                                    Text(descriptions[index])
+                                        .font(.subheadline)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, 30)
+                                        .padding(.top, 10)
+                                    Spacer()
 
-                // Subscription Options
-                VStack(spacing: 16) {
-                    Text("Unlimited access to")
-                        .font(.title2)
-                        .bold()
-                    Text("🍎 Cal AI")
-                        .font(.largeTitle)
-                        .bold()
-                    
-                    HStack(spacing: 16) {
-                        Button(action: {
-                            selectedOption = "Monthly"
-                        }) {
-                            VStack {
-                                HStack {
-                                    Text("Monthly")
-                                        .bold()
-                                    Spacer()
                                 }
-                                .padding(.bottom, 4)
-                                
-                                Text("₺ 399,99 /mo")
-                                    .font(.title3)
-                                    .bold()
-                                    .foregroundColor(selectedOption == "Monthly" ? .black : .gray)
+                                .tag(index)
                             }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(selectedOption == "Monthly" ? Color(.systemGray6) : Color.clear)
-                            .cornerRadius(10)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(selectedOption == "Monthly" ? Color.black : Color.gray, lineWidth: 2)
-                            )
+                            
                         }
+                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                         
-                        Button(action: {
-                            selectedOption = "Yearly"
-                        }) {
-                            VStack {
-                                HStack {
-                                    Text("Yearly")
-                                        .bold()
-                                    Spacer()
-                                    Text("Save 60%")
-                                        .font(.footnote)
-                                        .foregroundColor(.red)
-                                        .bold()
-                                }
-                                .padding(.bottom, 4)
-                                
-                                Text("₺ 166,66 /mo")
-                                    .font(.title3)
-                                    .bold()
-                                    .foregroundColor(selectedOption == "Yearly" ? .black : .gray)
+                        HStack(spacing: 8) {
+                            ForEach(0..<images.count, id: \.self) { index in
+                                Circle()
+                                    .fill(currentIndex == index ? Color.black : Color(UIColor.systemGray6))
+                                    .frame(width: 10, height: 10)
                             }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(selectedOption == "Yearly" ? Color(.systemGray6) : Color.clear)
-                            .cornerRadius(10)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(selectedOption == "Yearly" ? Color.black : Color.gray, lineWidth: 2)
-                            )
+                        }
+                        .padding(.bottom, 10)
+                        
+                    }
+                    .background(Color.white)
+                    .frame(width: UIScreen.main.bounds.width ,height: 300)
+                    .cornerRadius(30, corners: [.topLeft, .topRight])
+                    Divider()
+                    
+                    VStack {
+                        Button(action: {
+                            // Handle next action
+                        }) {
+                            Text("Next")
+                                .fontWeight(.bold)
+                                .frame(maxWidth: .infinity, maxHeight: 30)
+                                .padding()
+                                .foregroundColor(.white)
+                                .background(Color.black)
+                                .cornerRadius(30)
+                                .padding(.horizontal, 8)
                         }
                     }
-                    .padding(.horizontal)
-                    
-                    Button(action: {
-                        // Add continue button action here
-                    }) {
-                        Text("Continue")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.black)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                    }
-                    .padding(.horizontal)
-                    
-                    Text("Already purchased?")
-                        .foregroundColor(.gray)
-                        .font(.subheadline)
-                        .padding(.top, 8)
+                    .padding()
+                    .frame(maxWidth: geometry.size.width)
+                    .background(Color.white)
+                    .edgesIgnoringSafeArea(.bottom)
                 }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(15, corners: [.topLeft, .topRight])
-                .frame(width: geometry.size.width)
-                .padding(.bottom, 0) // Butonun altındaki boşluk daha iyi görünsün
             }
-        }
-        .onAppear {
-            loadVideos()
-        }
-    }
-    
-    private func loadVideos() {
-        let videoURLs = ["https://videos.pexels.com/video-files/4057322/4057322-sd_506_960_25fps.mp4", "https://videos.pexels.com/video-files/4536566/4536566-sd_360_640_30fps.mp4", "https://videos.pexels.com/video-files/3943967/3943967-sd_506_960_25fps.mp4"]
-        players = videoURLs.compactMap { urlString in
-            guard let url = URL(string: urlString) else { return nil }
-            return AVPlayer(url: url)
         }
     }
 }
 
-struct OnboardingView_Previews: PreviewProvider {
+struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         OnboardingView()
     }
 }
 
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
+    }
+}
 
