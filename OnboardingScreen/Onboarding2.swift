@@ -4,8 +4,10 @@
 //
 //  Created by Talha Batuhan Irmalı on 6.11.2024.
 //
+
 import SwiftUI
 import StoreKit
+import ConfettiSwiftUI
 
 struct OnboardingView1: View {
     @State private var currentPage: Int = 0
@@ -19,6 +21,8 @@ struct OnboardingView1: View {
     @State private var selectedGoal: String? = nil
     @State private var isNextButtonEnabled: Bool = false
     @State private var notificationPermissionGranted: Bool = false
+    @State private var wasNextButtonEnabled: Bool = false // Track previous state of the button
+    @State private var confettiCounter: Int = 0
 
     @Environment(\.presentationMode) var presentationMode
 
@@ -27,6 +31,7 @@ struct OnboardingView1: View {
             // Header with Back Button and Progress Bar side by side
             HStack {
                 Button(action: {
+                    generateHapticFeedback() // Add haptic feedback
                     if currentPage > 0 {
                         currentPage -= 1
                     } else {
@@ -43,14 +48,14 @@ struct OnboardingView1: View {
                 
                 Spacer()
                 
-                ProgressBar(currentPage: $currentPage, totalPages: 7)
+                ProgressBar(currentPage: $currentPage, totalPages: 8)
                     .frame(height: 4)
                     .padding(.trailing)
             }
             
             // Content
             if currentPage == 0 {
-                GenderSelectionView(selectedGender: $selectedGender)
+                GenderSelectionView(selectedGender: $selectedGender, generateHapticFeedback: generateHapticFeedback)
             } else if currentPage == 1 {
                 ImageExampleView()
             } else if currentPage == 2 {
@@ -58,7 +63,7 @@ struct OnboardingView1: View {
             } else if currentPage == 3 {
                 HeightWeightSelectionView(selectedHeightFeet: $selectedHeightFeet, selectedHeightInches: $selectedHeightInches, selectedHeightCm: $selectedHeightCm, selectedWeight: $selectedWeight, isMetric: $isMetric)
             } else if currentPage == 4 {
-                GoalSelectionView(selectedGoal: $selectedGoal)
+                GoalSelectionView(selectedGoal: $selectedGoal, generateHapticFeedback: generateHapticFeedback)
             } else if currentPage == 5 {
                 NotificationPermissionView(isNextButtonEnabled: $notificationPermissionGranted)
             } else if currentPage == 6 {
@@ -78,7 +83,16 @@ struct OnboardingView1: View {
                             isNextButtonEnabled = true
                         }
                     }
+            } else if currentPage == 7 {
+                ThankYouView(confettiCounter: $confettiCounter)
+                    .onAppear {
+                        confettiCounter += 1
+                    }
+            }else if currentPage == 8 {
+                LoadingView() // Add the loading screen as the last page
             }
+            
+            
 
             Spacer()
             Divider()
@@ -86,13 +100,15 @@ struct OnboardingView1: View {
             // Footer with Next Button
             VStack {
                 Button(action: {
+                    generateHapticFeedback() // Add haptic feedback
                     if (currentPage == 0 && selectedGender != nil) ||
                         currentPage == 1 ||
                         (currentPage == 2 && isValidBirthDate(selectedDate)) ||
                         (currentPage == 3) ||
                         (currentPage == 4 && selectedGoal != nil) ||
                         (currentPage == 5 && notificationPermissionGranted) ||
-                        (currentPage == 6 && isNextButtonEnabled) {
+                        (currentPage == 6 && isNextButtonEnabled) ||
+                        (currentPage == 7 && isNextButtonEnabled) {
                         currentPage += 1
                     }
                 }) {
@@ -101,26 +117,26 @@ struct OnboardingView1: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background((currentPage == 0 && selectedGender != nil) ||
-                                    currentPage == 1 ||
-                                    (currentPage == 2 && isValidBirthDate(selectedDate)) ||
-                                    currentPage == 3 ||
-                                    (currentPage == 4 && selectedGoal != nil) ||
-                                    (currentPage == 5 && notificationPermissionGranted) ||
-                                    (currentPage == 6 && isNextButtonEnabled) ? Color.black : Color.gray.opacity(0.4))
+                        .background(isNextButtonCurrentlyEnabled() ? Color.black : Color.gray.opacity(0.4))
                         .cornerRadius(30)
                 }
                 .padding(.horizontal)
-                .disabled(!(currentPage == 1 ||
-                            (currentPage == 0 && selectedGender != nil) ||
-                            (currentPage == 2 && isValidBirthDate(selectedDate)) ||
-                            currentPage == 3 ||
-                            (currentPage == 4 && selectedGoal != nil) ||
-                            (currentPage == 5 && notificationPermissionGranted) ||
-                            (currentPage == 6 && isNextButtonEnabled)))
+                .disabled(!isNextButtonCurrentlyEnabled())
+                .onChange(of: isNextButtonCurrentlyEnabled()) { newValue in
+                    // Add haptic feedback if the button becomes enabled
+                    if newValue && !wasNextButtonEnabled {
+                        generateHapticFeedback()
+                    }
+                    wasNextButtonEnabled = newValue
+                }
             }
         }
         .navigationBarBackButtonHidden(true) // Hides the default back button
+    }
+
+    private func generateHapticFeedback() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
     }
 
     private func isValidBirthDate(_ date: Date) -> Bool {
@@ -131,113 +147,22 @@ struct OnboardingView1: View {
         }
         return false
     }
-}
 
-struct ReviewRequestView: View {
-    @Binding var isNextButtonEnabled: Bool
-
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                Text("Give us rating")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-
-                HStack(spacing: 10) {
-
-                    Text("⭐️ ⭐️ ⭐️ ⭐️ ⭐️")
-                        .font(.title)
-                        .padding(.horizontal)
-                }
-                .padding()
-                .background(Color(UIColor.systemGray6))
-                .cornerRadius(10)
-
-                Text("Cal AI was made for people like you")
-                    .font(.headline)
-
-                HStack {
-                    Image("exampleUser1")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
-
-                    Image("exampleUser2")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
-
-                    Image("exampleUser3")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
-
-                }
-                Text("+ 1000 Fashion AI people")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-
-                VStack(alignment: .leading, spacing: 15) {
-                    ReviewView(userName: "Marley Bryle", userImage: "exampleUser1", review: "I lost 15 lbs in 2 months! I was about to go on Ozempic but decided to give this app a shot and it worked :)")
-                    ReviewView(userName: "Benny Marcs", userImage: "exampleUser3", review: "The time I have saved by just taking care of my calorie intake with Fashion AI is incredible!")
-                    ReviewView(userName: "Alex Smith", userImage: "exampleUser2", review: "Fashion AI has been an absolute game changer for my health journey. Highly recommended!")
-                    ReviewView(userName: "Jessica Lee", userImage: "exampleUser3", review: "The simplicity of this app is what makes it so effective. I love it!")
-                    ReviewView(userName: "Chris Doe", userImage: "exampleUser2", review: "Amazing app, easy to use and very motivating.")
-                }
-                .padding()
-            }
-            .padding()
-        }
-    }
-}
-
-struct ReviewView: View {
-    var userName: String
-    var userImage: String
-    var review: String
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            HStack {
-                Image(userImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 30, height: 30)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.white, lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
-
-                Text(userName)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.white)
-                Spacer()
-                HStack(spacing: 2) {
-                    Text("⭐️⭐️⭐️⭐️⭐️")
-                        .font(.title3)
-                }
-                
-            }
-            Text(review)
-                .font(.body)
-                .foregroundStyle(.white)
-        }
-        .padding()
-        .background(Color.gray.opacity(0.95))
-        .cornerRadius(20)
+    private func isNextButtonCurrentlyEnabled() -> Bool {
+        return (currentPage == 1) ||
+            (currentPage == 0 && selectedGender != nil) ||
+            (currentPage == 2 && isValidBirthDate(selectedDate)) ||
+            (currentPage == 3) ||
+            (currentPage == 4 && selectedGoal != nil) ||
+            (currentPage == 5 && notificationPermissionGranted) ||
+            (currentPage == 6 && isNextButtonEnabled) ||
+            (currentPage == 7 && isNextButtonEnabled)
     }
 }
 
 struct GenderSelectionView: View {
     @Binding var selectedGender: String?
+    let generateHapticFeedback: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -454,6 +379,7 @@ struct HeightWeightSelectionView: View {
 
 struct GoalSelectionView: View {
     @Binding var selectedGoal: String?
+    let generateHapticFeedback: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -556,12 +482,152 @@ struct NotificationPermissionView: View {
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             DispatchQueue.main.async {
-                isNextButtonEnabled = granted
+                isNextButtonEnabled = true
             }
         }
     }
 }
 
+struct ReviewRequestView: View {
+    @Binding var isNextButtonEnabled: Bool
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 20) {
+                Text("Give us rating")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                HStack(spacing: 10) {
+
+                    Text("⭐️ ⭐️ ⭐️ ⭐️ ⭐️")
+                        .font(.title)
+                        .padding(.horizontal)
+                }
+                .padding()
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(10)
+
+                Text("Cal AI was made for people like you")
+                    .font(.headline)
+
+                HStack {
+                    Image("exampleUser1")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+
+                    Image("exampleUser2")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+
+                    Image("exampleUser3")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+
+                }
+                Text("+ 1000 Fashion AI people")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+
+                VStack(alignment: .leading, spacing: 15) {
+                    ReviewView(userName: "Marley Bryle", userImage: "exampleUser1", review: "I lost 15 lbs in 2 months! I was about to go on Ozempic but decided to give this app a shot and it worked :)")
+                    ReviewView(userName: "Benny Marcs", userImage: "exampleUser3", review: "The time I have saved by just taking care of my calorie intake with Fashion AI is incredible!")
+                    ReviewView(userName: "Alex Smith", userImage: "exampleUser2", review: "Fashion AI has been an absolute game changer for my health journey. Highly recommended!")
+                    ReviewView(userName: "Jessica Lee", userImage: "exampleUser3", review: "The simplicity of this app is what makes it so effective. I love it!")
+                    ReviewView(userName: "Chris Doe", userImage: "exampleUser2", review: "Amazing app, easy to use and very motivating.")
+                }
+                .padding()
+            }
+            .padding()
+        }
+    }
+}
+
+struct ReviewView: View {
+    var userName: String
+    var userImage: String
+    var review: String
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            HStack {
+                Image(userImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white, lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+
+                Text(userName)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
+                Spacer()
+                HStack(spacing: 2) {
+                    Text("⭐️⭐️⭐️⭐️⭐️")
+                        .font(.title3)
+                }
+                
+            }
+            Text(review)
+                .font(.body)
+                .foregroundStyle(.white)
+        }
+        .padding()
+        .background(Color.gray.opacity(0.95))
+        .cornerRadius(20)
+    }
+}
+
+struct ThankYouView: View {
+    @State private var isCompleted: Bool = false
+    @Binding var confettiCounter: Int
+
+    var body: some View {
+        VStack {
+            Spacer()
+            
+            // All Done Message with confetti effect
+            VStack(alignment: .center, spacing: 16) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.orange)
+                    
+                    Text("All done!")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                }
+                
+                Text("Thank you for trusting us")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                
+                Text("We promise to always keep your personal information private and secure.")
+                    .font(.body)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            Spacer()
+        }
+        .confettiCannon(counter: $confettiCounter, num: 50, openingAngle: Angle(degrees: 0), closingAngle: Angle(degrees: 360), radius: 200)
+        .navigationBarBackButtonHidden(true)
+    }
+}
 
 struct ProgressBar: View {
     @Binding var currentPage: Int
@@ -583,12 +649,83 @@ struct ProgressBar: View {
     }
 }
 
+struct LoadingView: View {
+    @State private var currentTextIndex: Int = 0
+    @State private var timer: Timer? = nil
+    @State private var isAnimating = false
 
-struct OnboardingView_Previews: PreviewProvider {
-    static var previews: some View {
-//        ReviewRequestView(isNextButtonEnabled: .constant(false))
-        OnboardingView1()
+    let loadingTexts: [String] = [
+        "Applying BMR formula...",
+        "Customizing your plan...",
+        "Fetching personalized insights...",
+        "Analyzing your health data...",
+        "Finalizing details..."
+    ]
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            
+            Text("We\'re setting everything up for you")
+                .font(.title)
+                .fontWeight(.bold)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            
+            Text(loadingTexts[currentTextIndex])
+                .font(.body)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+                .onAppear {
+                    startTextRotation()
+                }
+                .onDisappear {
+                    stopTextRotation()
+                }
+            
+            HStack(spacing: 12) {
+                ForEach(0..<3) { index in
+                    Circle()
+                        .frame(width: 12, height: 12)
+                        .scaleEffect(isAnimating ? 1.0 : 0.5)
+                        .animation(
+                            Animation.easeInOut(duration: 0.6)
+                                .repeatForever()
+                                .delay(0.2 * Double(index)),
+                            value: isAnimating
+                        )
+                }
+            }
+            .onAppear {
+                isAnimating = true
+            }
+            
+            Spacer()
+        }
+    }
+    
+    private func startTextRotation() {
+        timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            currentTextIndex = (currentTextIndex + 1) % loadingTexts.count
+        }
+    }
+    
+    private func stopTextRotation() {
+        timer?.invalidate()
+        timer = nil
     }
 }
 
+
+struct OnboardingView_Previews: PreviewProvider {
+    static var previews: some View {
+        OnboardingView()
+    }
+}
+
+extension Color {
+    static let darkGray = Color(UIColor.darkGray)
+    static let lightGray = Color(UIColor.lightGray)
+}
 
