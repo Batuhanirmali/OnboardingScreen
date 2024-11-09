@@ -8,6 +8,7 @@
 import SwiftUI
 import StoreKit
 import ConfettiSwiftUI
+import Lottie
 
 struct OnboardingView1: View {
     @State private var currentPage: Int = 0
@@ -21,17 +22,17 @@ struct OnboardingView1: View {
     @State private var selectedGoal: String? = nil
     @State private var isNextButtonEnabled: Bool = false
     @State private var notificationPermissionGranted: Bool = false
-    @State private var wasNextButtonEnabled: Bool = false // Track previous state of the button
+    @State private var wasNextButtonEnabled: Bool = false
     @State private var confettiCounter: Int = 0
+    @State private var showFreeTrialShop: Bool = false
 
     @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
         VStack {
-            // Header with Back Button and Progress Bar side by side
             HStack {
                 Button(action: {
-                    generateHapticFeedback() // Add haptic feedback
+                    generateHapticFeedback()
                     if currentPage > 0 {
                         currentPage -= 1
                     } else {
@@ -48,8 +49,8 @@ struct OnboardingView1: View {
                 
                 Spacer()
                 
-                ProgressBar(currentPage: $currentPage, totalPages: 8)
-                    .frame(height: 4)
+                ProgressBar(currentPage: $currentPage, totalPages: 9)
+                    .frame(height: 3)
                     .padding(.trailing)
             }
             
@@ -84,15 +85,28 @@ struct OnboardingView1: View {
                         }
                     }
             } else if currentPage == 7 {
-                ThankYouView(confettiCounter: $confettiCounter)
+                ThankYouView(confettiCounter: $confettiCounter, isNextButtonEnabled: $isNextButtonEnabled)
                     .onAppear {
                         confettiCounter += 1
+                        isNextButtonEnabled = true
                     }
-            }else if currentPage == 8 {
-                LoadingView() // Add the loading screen as the last page
+            } else if currentPage == 8 {
+                LoadingView(isNextButtonEnabled: $isNextButtonEnabled)
+                    .onAppear {
+                        isNextButtonEnabled = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                            isNextButtonEnabled = true
+                        }
+                    }
+            } else if currentPage == 9 {
+                SummaryView()
+                    .onAppear {
+                        isNextButtonEnabled = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                            isNextButtonEnabled = true
+                        }
+                    }
             }
-            
-            
 
             Spacer()
             Divider()
@@ -100,15 +114,10 @@ struct OnboardingView1: View {
             // Footer with Next Button
             VStack {
                 Button(action: {
-                    generateHapticFeedback() // Add haptic feedback
-                    if (currentPage == 0 && selectedGender != nil) ||
-                        currentPage == 1 ||
-                        (currentPage == 2 && isValidBirthDate(selectedDate)) ||
-                        (currentPage == 3) ||
-                        (currentPage == 4 && selectedGoal != nil) ||
-                        (currentPage == 5 && notificationPermissionGranted) ||
-                        (currentPage == 6 && isNextButtonEnabled) ||
-                        (currentPage == 7 && isNextButtonEnabled) {
+                    generateHapticFeedback()
+                    if currentPage == 9 {
+                        showFreeTrialShop = true // Show FreeTrialShopView as a full-screen cover
+                    } else if isNextButtonCurrentlyEnabled() {
                         currentPage += 1
                     }
                 }) {
@@ -116,14 +125,13 @@ struct OnboardingView1: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding()
+                        .padding(20)
                         .background(isNextButtonCurrentlyEnabled() ? Color.black : Color.gray.opacity(0.4))
                         .cornerRadius(30)
                 }
                 .padding(.horizontal)
                 .disabled(!isNextButtonCurrentlyEnabled())
                 .onChange(of: isNextButtonCurrentlyEnabled()) { newValue in
-                    // Add haptic feedback if the button becomes enabled
                     if newValue && !wasNextButtonEnabled {
                         generateHapticFeedback()
                     }
@@ -131,7 +139,10 @@ struct OnboardingView1: View {
                 }
             }
         }
-        .navigationBarBackButtonHidden(true) // Hides the default back button
+        .navigationBarBackButtonHidden(true)
+        .fullScreenCover(isPresented: $showFreeTrialShop) {
+            FreeTrialShopView()
+        }
     }
 
     private func generateHapticFeedback() {
@@ -142,23 +153,448 @@ struct OnboardingView1: View {
     private func isValidBirthDate(_ date: Date) -> Bool {
         let calendar = Calendar.current
         let ageComponents = calendar.dateComponents([.year], from: date, to: Date())
-        if let age = ageComponents.year, age >= 4 {
-            return true
-        }
-        return false
+        return ageComponents.year ?? 0 >= 4
     }
 
     private func isNextButtonCurrentlyEnabled() -> Bool {
         return (currentPage == 1) ||
-            (currentPage == 0 && selectedGender != nil) ||
-            (currentPage == 2 && isValidBirthDate(selectedDate)) ||
-            (currentPage == 3) ||
-            (currentPage == 4 && selectedGoal != nil) ||
-            (currentPage == 5 && notificationPermissionGranted) ||
-            (currentPage == 6 && isNextButtonEnabled) ||
-            (currentPage == 7 && isNextButtonEnabled)
+        (currentPage == 0 && selectedGender != nil) ||
+        (currentPage == 2 && isValidBirthDate(selectedDate)) ||
+        (currentPage == 3) ||
+        (currentPage == 4 && selectedGoal != nil) ||
+        (currentPage == 5 && notificationPermissionGranted) ||
+        (currentPage == 6 && isNextButtonEnabled) ||
+        (currentPage == 7 && isNextButtonEnabled) ||
+        (currentPage == 8 && isNextButtonEnabled) ||
+        (currentPage == 9 && isNextButtonEnabled)
     }
 }
+
+struct FreeTrialShopView: View {
+    @State private var currentIndex: Int = 0 // Controls content within FreeTrialShopView
+
+    var body: some View {
+        VStack {
+            if currentIndex == 0 {
+                FreeTrialContentView(currentIndex: $currentIndex)
+            } else if currentIndex == 1 {
+                FreeTrialReminderView(currentIndex: $currentIndex) // Pass currentIndex as a binding
+            } else if currentIndex == 2 {
+                OnboardingFreeTrialShopView(currentIndex: $currentIndex) // Navigate to the new view
+            }
+        }
+    }
+}
+
+
+import SwiftUI
+import AVKit
+
+struct CustomVideoPlayer: UIViewControllerRepresentable {
+    var player: AVPlayer
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.showsPlaybackControls = false
+        controller.videoGravity = .resizeAspectFill
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        // Update code if necessary
+    }
+}
+
+struct FreeTrialContentView: View {
+    @Binding var currentIndex: Int
+
+    // Create an AVPlayer instance with the video URL
+    private let player = AVPlayer(url: URL(string: "https://videos.pexels.com/video-files/3946211/3946211-uhd_1440_2732_25fps.mp4")!)
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("We want you to try CalAI for free.")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 40)
+
+                    // Replace the Image with CustomVideoPlayer
+                    CustomVideoPlayer(player: player)
+                        .frame(width: UIScreen.main.bounds.width * 0.8, height: 300)
+                        .cornerRadius(20)
+                        .onAppear {
+                            player.play() // Automatically start playback
+                        }
+                        .onDisappear {
+                            player.pause() // Pause when view disappears
+                        }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 100)
+            }
+
+            VStack(spacing: 10) {
+                Text("✓ No Payment Due Now")
+                    .font(.headline)
+
+                Button(action: {
+                    currentIndex = 1 // Navigate to FreeTrialReminderView
+                }) {
+                    Text("Try for $0.00")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(20)
+                        .background(Color.black)
+                        .cornerRadius(15)
+                }
+                .padding(.horizontal)
+
+                Text("No commitment, cancel anytime.")
+                    .font(.footnote)
+                    .foregroundColor(.gray)
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color.white)
+            .padding(.vertical)
+        }
+        .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+struct FreeTrialReminderView: View {
+    @Binding var currentIndex: Int // Bind to currentIndex in parent view to go back
+    @State private var isAnimationPlaying = true
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 30) {
+                // Back Button at the top left
+                HStack {
+                    Button(action: {
+                        currentIndex = 0 // Go back to FreeTrialShopView
+                    }) {
+                        Image(systemName: "chevron.backward")
+                            .font(.title3)
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                }
+
+                
+                // Title Text
+                Text("We'll send you a reminder before your free trial ends")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                    .padding(.top, 100)
+
+                
+                // Notification Bell Icon
+                HStack {
+                    LottieView(name: "bell", loopMode: .loop, isPlaying: $isAnimationPlaying)
+                }
+                .padding(.top, 25)
+                .shadow(radius: 5)
+                .frame(width: UIScreen.main.bounds.width * 0.5, height: UIScreen.main.bounds.width * 0.5)
+                
+                Spacer()
+            }
+            .padding()
+            .background(Color.white)
+            
+            // Bottom Overlay with Continue Button
+            VStack(spacing: 10) {
+                Text("✓ No Payment Due Now")
+                    .font(.headline)
+                
+                Button(action: {
+                    currentIndex = 2 // Navigate to OnboardingFreeTrailShopView
+                }) {
+                    Text("Continue for FREE")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(20)
+                        .background(Color.black)
+                        .cornerRadius(15)
+                }
+                .padding(.horizontal)
+                
+                Text("No commitment, cancel anytime.")
+                    .font(.footnote)
+                    .foregroundColor(.gray)
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color.white)
+            .padding(.vertical)
+
+        }
+        .ignoresSafeArea(edges: .bottom) // Ignore safe areas at the bottom
+    }
+}
+
+struct OnboardingFreeTrialShopView: View {
+    @Environment(\.presentationMode) var presentationMode
+    @Binding var currentIndex: Int // To navigate back to previous view
+    @State private var showOverlay = false // State to control overlay visibility
+    @State private var showOpacity = false
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 20) {
+                // Top bar with Back and Close buttons
+                HStack {
+                    Button(action: {
+                        currentIndex = 1 // Go back to FreeTrialReminderView
+                    }) {
+                        Image(systemName: "chevron.backward")
+                            .font(.title2)
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showOverlay = true // Show the overlay with faster animation
+                            showOpacity = true
+                        }
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.title2)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding([.leading, .trailing, .top])
+                .padding(.bottom, 20)
+
+                // Main title
+                Text("Start your 3-day FREE trial to continue.")
+                    .font(.title)
+                    .bold()
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                // Timeline of features with VerticalStepperView and text
+                HStack(alignment: .top, spacing: 5) {
+                    VerticalStepperView() // Custom stepper view
+                    
+                    VStack(alignment: .leading, spacing: 17.5) { // Text for each step
+                        TimelineTextView(
+                            title: "Today",
+                            description: "Unlock all the app's features like AI calorie scanning and more."
+                        )
+                        TimelineTextView(
+                            title: "In 2 Days - Reminder",
+                            description: "We'll send you a reminder that your trial is ending soon."
+                        )
+                        TimelineTextView(
+                            title: "In 3 Days - Billing Starts",
+                            description: "You'll be charged on 11 Nov 2024 unless you cancel anytime before."
+                        )
+                    }
+                }
+                .frame(height: 300)
+                .padding(.horizontal)
+
+                Spacer()
+            }
+            .background(Color.white)
+            .opacity(showOpacity ? 0.5 : 1) // Darken background when overlay is shown
+
+            // Bottom overlay with Start Free Trial Button
+            VStack(spacing: 10) {
+                Text("✓ No Payment Due Now")
+                    .font(.headline)
+                
+                Button(action: {
+                    // Action to start free trial
+                }) {
+                    Text("Start Free Trial")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(20)
+                        .background(Color.black)
+                        .cornerRadius(15)
+                }
+                .padding(.horizontal)
+                
+                Text("3 days free, then ₺999,99 per year (₺83,33/mo)")
+                    .font(.footnote)
+                    .foregroundColor(.gray)
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color.white)
+            .padding(.vertical)
+            
+            
+            // Overlay
+            if showOverlay {
+                Color.black.opacity(0.5) // Background dimming effect
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showOverlay = false // Close overlay with faster animation
+                            showOpacity = false
+                        }
+                    }
+
+                VStack {
+                    VStack(spacing: 20) {
+                        HStack {
+                            Spacer()
+                            Text("Not down for a year? We get it.")
+                                .font(.headline)
+                            Spacer()
+                            Button(action: {
+                                presentationMode.wrappedValue.dismiss() // Close the view
+                            }) {
+                                Image(systemName: "xmark")
+                                    .font(.title3)
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        HStack {
+                            Text("₺999,99 per year")
+                                .font(.title3)
+                                .foregroundColor(.black)
+                                .strikethrough(true)
+                            Text("₺399,99 per month")
+                                .font(.title3)
+                                .bold()
+                                .foregroundColor(.red)
+                                .strikethrough(false)
+                        }
+                        
+                        VStack {
+                            Text("Special Offer")
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal)
+                                .background(Color.red)
+                                .cornerRadius(20)
+                        }
+                        .frame(height: 30)
+                        .background(.red)
+                        .cornerRadius(20)
+                        
+                        Spacer()
+                        VStack(spacing: 10) {
+                            Text("✓ No commitment, cancel anytime")
+                                .font(.headline)
+                            
+                            Button(action: {
+                                // Action to start free trial
+                            }) {
+                                Text("Accept Offer")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(20)
+                                    .background(Color.black)
+                                    .cornerRadius(15)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white)
+                        .ignoresSafeArea() // Ignore safe areas at the bottom
+                        .padding(.vertical)
+                    }
+                    .padding()
+                    .frame(height: UIScreen.main.bounds.height / 3) // One-third screen height
+                    .frame(maxWidth: .infinity)
+                    .background(Color.white)
+                    .cornerRadius(20, corners: [.topLeft, .topRight])
+                    .shadow(radius: 10)
+                    
+                }
+                .transition(.move(edge: .bottom)) // Slide up and down effect
+                .animation(.easeInOut(duration: 0.25)) // Faster animation effect
+            }
+        }
+        .ignoresSafeArea(edges: .bottom) // Ignore safe areas at the bottom
+    }
+}
+
+struct VerticalStepperView: View {
+    var body: some View {
+        ZStack {
+            // Vertical line split into two parts
+            VStack(spacing: 0) {
+                // Orange part (top 2/3 of the original length, adjusted)
+                Rectangle()
+                    .fill(Color.orange.opacity(0.5))
+                    .frame(width: 15, height: 167) // Çizgi genişliği ve yüksekliği ayarlandı
+                
+                // Dark Gray part (bottom 1/3 of the original length, adjusted)
+                Rectangle()
+                    .fill(Color.gray.opacity(0.8))
+                    .frame(width: 15, height: 83)
+                    .cornerRadius(100)
+            }
+            .frame(width: 55, height: 250) // Total height set to 250
+            
+            VStack(spacing: 45) { // Adjusted spacing for new height
+                // Lock Icon
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 35, height: 35)
+                    .overlay(
+                        Image(systemName: "lock.open")
+                            .foregroundColor(.white)
+                            .font(.system(size: 21))
+                    )
+                
+                // Bell Icon
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 35, height: 35)
+                    .overlay(
+                        Image(systemName: "bell")
+                            .foregroundColor(.white)
+                            .font(.system(size: 21))
+                    )
+                
+                // Crown Icon
+                Circle()
+                    .fill(Color.black)
+                    .frame(width: 35, height: 35)
+                    .overlay(
+                        Image(systemName: "crown")
+                            .foregroundColor(.white)
+                            .font(.system(size: 21))
+                    )
+            }
+            .padding(.top, -70) // Adjusted to align with the new line height
+        }
+    }
+}
+
+
+
+// Custom view for each step's text content
+struct TimelineTextView: View {
+    var title: String
+    var description: String
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(title)
+                .font(.headline)
+            Text(description)
+                .font(.callout)
+                .foregroundColor(.gray)
+        }
+    }
+}
+
+
 
 struct GenderSelectionView: View {
     @Binding var selectedGender: String?
@@ -443,20 +879,22 @@ struct NotificationPermissionView: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, 50)
 
-            Button(action: {
-                requestNotificationPermission()
-            }) {
-                VStack {
-                    Text("Fashion AI would like to send you Notifications")
-                        .fontWeight(.medium)
-                        .foregroundColor(.black)
+            VStack {
+                Text("Fashion AI would like to send you Notifications")
+                    .fontWeight(.medium)
+                    .foregroundColor(.black)
+                    .multilineTextAlignment(.center)
+                    .padding()
+                HStack {
+                    Text("Don't Allow")
+                        .frame(maxWidth: .infinity)
                         .padding()
-                    HStack {
-                        Text("Don't Allow")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.gray.opacity(0.4))
-                            .foregroundColor(.black)
+                        .background(Color.gray.opacity(0.4))
+                        .foregroundColor(.black)
+
+                    Button(action: {
+                        requestNotificationPermission()
+                    }) {
                         Text("Allow")
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -464,10 +902,11 @@ struct NotificationPermissionView: View {
                             .foregroundColor(.white)
                     }
                 }
-                .background(Color.gray.opacity(0.2))
-                .cornerRadius(15)
-                .padding(.horizontal)
             }
+            .background(Color.gray.opacity(0.2))
+            .cornerRadius(15)
+            .padding(.horizontal)
+
             HStack {
                 Spacer()
                 Text("👆")
@@ -594,6 +1033,7 @@ struct ReviewView: View {
 struct ThankYouView: View {
     @State private var isCompleted: Bool = false
     @Binding var confettiCounter: Int
+    @Binding var isNextButtonEnabled: Bool
 
     var body: some View {
         VStack {
@@ -636,23 +1076,31 @@ struct ProgressBar: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
+                // Background bar
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
                     .frame(width: geometry.size.width, height: geometry.size.height)
-
+                
+                // Foreground bar with conditional color and full width on the last page
                 Rectangle()
-                    .fill(Color.black)
-                    .frame(width: (CGFloat(currentPage + 1) / CGFloat(totalPages)) * geometry.size.width, height: geometry.size.height)
+                    .fill(currentPage == totalPages ? Color(red: 0.0, green: 0.5, blue: 0.0) : Color.black)
+                    .frame(
+                        width: currentPage == totalPages ? geometry.size.width : (CGFloat(currentPage) / CGFloat(totalPages)) * geometry.size.width,
+                        height: geometry.size.height
+                    )
             }
             .cornerRadius(2)
         }
     }
 }
 
+
 struct LoadingView: View {
+    @Binding var isNextButtonEnabled: Bool
     @State private var currentTextIndex: Int = 0
     @State private var timer: Timer? = nil
     @State private var isAnimating = false
+    @State private var isSetupComplete = false  // New state to track setup completion
 
     let loadingTexts: [String] = [
         "Applying BMR formula...",
@@ -666,48 +1114,62 @@ struct LoadingView: View {
         VStack(spacing: 20) {
             Spacer()
             
-            Text("We\'re setting everything up for you")
+            Text(isSetupComplete ? "Everything's all set" : "We're setting everything up for you")
                 .font(.title)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-            
-            Text(loadingTexts[currentTextIndex])
-                .font(.body)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
                 .onAppear {
-                    startTextRotation()
-                }
-                .onDisappear {
-                    stopTextRotation()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                        isNextButtonEnabled = true
+                        isSetupComplete = true  // Update text after 10 seconds
+                        stopLoadingAnimation()
+                    }
                 }
             
-            HStack(spacing: 12) {
-                ForEach(0..<3) { index in
-                    Circle()
-                        .frame(width: 12, height: 12)
-                        .scaleEffect(isAnimating ? 1.0 : 0.5)
-                        .animation(
-                            Animation.easeInOut(duration: 0.6)
-                                .repeatForever()
-                                .delay(0.2 * Double(index)),
-                            value: isAnimating
-                        )
+            if !isNextButtonEnabled {
+                Text(loadingTexts[currentTextIndex])
+                    .font(.body)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                    .onAppear {
+                        startTextRotation()
+                    }
+                    .onDisappear {
+                        stopTextRotation()
+                    }
+                
+                HStack(spacing: 12) {
+                    ForEach(0..<3) { index in
+                        Circle()
+                            .frame(width: 12, height: 12)
+                            .scaleEffect(isAnimating ? 1.0 : 0.5)
+                            .animation(
+                                Animation.easeInOut(duration: 0.6)
+                                    .repeatForever()
+                                    .delay(0.2 * Double(index)),
+                                value: isAnimating
+                            )
+                    }
                 }
-            }
-            .onAppear {
-                isAnimating = true
+                .onAppear {
+                    isAnimating = true
+                }
             }
             
             Spacer()
         }
+        
     }
     
     private func startTextRotation() {
-        timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-            currentTextIndex = (currentTextIndex + 1) % loadingTexts.count
+        timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
+            if currentTextIndex < loadingTexts.count - 1 {
+                currentTextIndex += 1
+            } else {
+                stopTextRotation()
+            }
         }
     }
     
@@ -715,12 +1177,166 @@ struct LoadingView: View {
         timer?.invalidate()
         timer = nil
     }
+    
+    private func stopLoadingAnimation() {
+        isAnimating = false
+    }
 }
+
+
+struct SummaryView: View {
+    
+    let calories: Double = 1815
+    let carbs: Double = 221
+    let protein: Double = 119
+    let fats: Double = 50
+    let healthScore: Int = 7
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Header with a checkmark icon and congratulatory text
+                VStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.black)
+                    
+                    Text("Congratulations")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    Text("your custom plan is ready!")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 40)
+                
+                // Weight gain target
+                VStack(spacing: 8) {
+                    Text("You should gain:")
+                        .font(.headline)
+                    
+                    Text("10 lbs by April 11, 2025")
+                        .font(.body)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(12)
+                }
+                
+                // Daily recommendation section
+
+                VStack(alignment: .leading, spacing: 20) {
+                    
+                    // Başlık Kısmı
+                    VStack(alignment: .leading, spacing: 4) { // Leading alignment for left alignment
+                        Text("Daily recommendation")
+                            .font(.headline)
+                        
+                        Text("You can edit this anytime")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    // Circular Progress Views
+                    VStack(spacing: 20) {
+                        HStack(spacing: 20) {
+                            FlexibleCircularProgressContainer(title: "Calories", value: calories, maxValue: 3000, color:
+                                    .black)
+
+                            FlexibleCircularProgressContainer(title: "Carbs", value: carbs, maxValue: 300, color: .orange)
+
+                        }
+                        
+                        HStack(spacing: 20) {
+                            FlexibleCircularProgressContainer(title: "Protein", value: protein, maxValue: 150, color: .red)
+                            FlexibleCircularProgressContainer(title: "Fats", value: fats, maxValue: 100, color: .blue)
+
+                        }
+                    }.frame(height: UIScreen.main.bounds.height * 0.35)
+                    
+                    // Health Score Bölümü
+                    HStack {
+                        Image(systemName: "heart.fill")
+                            .foregroundColor(.pink)
+                            .padding(8)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .shadow(radius: 2)
+                        
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Health Score")
+                                    .font(.headline)
+                                
+                                Spacer()
+                                
+                                Text("\(healthScore)/10")
+                                    .font(.headline)
+                            }
+                            
+                            // Health Score Progress Bar
+                            ProgressView(value: Double(healthScore), total: 10)
+                                .tint(.green)
+                                .frame(height: 10)
+                        }
+                        
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(15)
+                    .shadow(radius: 4)
+                    
+                }
+                .padding()
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(15)
+                .padding()
+//                LottieView(animation: .named("Animation - 1731095147563"))
+//                    .playing(loopMode: .loop)
+                
+                Spacer()
+                
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 40) // Extra padding for scroll space
+        }
+    }
+}
+
+struct NutrientCard: View {
+    let title: String
+    let amount: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+            
+            Text(amount)
+                .font(.title3)
+                .fontWeight(.bold)
+            
+            Circle()
+                .trim(from: 0, to: 0.7) // Adjust trim for each nutrient
+                .stroke(color, lineWidth: 6)
+                .frame(width: 40, height: 40)
+        }
+        .frame(width: 100, height: 100)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(radius: 3)
+    }
+}
+
+
 
 
 struct OnboardingView_Previews: PreviewProvider {
     static var previews: some View {
-        OnboardingView()
+        FreeTrialReminderView(currentIndex: .constant(1))
     }
 }
 
@@ -729,3 +1345,61 @@ extension Color {
     static let lightGray = Color(UIColor.lightGray)
 }
 
+
+// Flexible Progress Container for better alignment
+struct FlexibleCircularProgressContainer: View {
+var title: String
+var value: Double
+var maxValue: Double
+var color: Color
+
+var body: some View {
+    GeometryReader { geometry in
+        VStack {
+            FlexibleCircularProgressView(title: title, value: value, maxValue: maxValue, color: color)
+                .frame(width: geometry.size.width * 0.6, height: geometry.size.width * 0.6)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white)
+        .cornerRadius(10)
+        .shadow(radius: 4)
+        
+        
+    }
+}
+}
+
+// Circular Progress View Yapısı
+struct FlexibleCircularProgressView: View {
+var title: String
+var value: Double
+var maxValue: Double
+var color: Color
+
+var progress: Double {
+    value / maxValue
+}
+
+var body: some View {
+    VStack(spacing: 10) {
+        Text(title)
+            .font(.subheadline)
+        
+        ZStack {
+            Circle()
+                .stroke(lineWidth: 5)
+                .opacity(0.2)
+                .foregroundColor(color)
+            Circle()
+                .trim(from: 0.0, to: progress)
+                .stroke(style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                .foregroundColor(color)
+                .rotationEffect(Angle(degrees: 270.0))
+                .animation(.linear, value: progress)
+            
+            Text(String(format: "%.0f", value))
+                .font(.title3)
+        }
+    }
+}
+}

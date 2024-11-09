@@ -80,7 +80,7 @@ struct OnboardingView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
-                                    .padding()
+                                    .padding(20)
                                     .background(Color.black)
                                     .cornerRadius(30)
 

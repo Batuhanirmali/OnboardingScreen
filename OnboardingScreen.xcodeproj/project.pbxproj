@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FFDD06922CDCB26400A1E690 /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = FFDD06912CDCB26400A1E690 /* ConfettiSwiftUI */; };
+		FFDD06952CDEA55900A1E690 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = FFDD06942CDEA55900A1E690 /* Lottie */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FFDD06922CDCB26400A1E690 /* ConfettiSwiftUI in Frameworks */,
+				FFDD06952CDEA55900A1E690 /* Lottie in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = OnboardingScreen;
 			packageProductDependencies = (
 				FFDD06912CDCB26400A1E690 /* ConfettiSwiftUI */,
+				FFDD06942CDEA55900A1E690 /* Lottie */,
 			);
 			productName = OnboardingScreen;
 			productReference = FF844EFE2CD8CD2A00FA0F6E /* OnboardingScreen.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				FFDD06902CDCB26400A1E690 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
+				FFDD06932CDEA55900A1E690 /* XCRemoteSwiftPackageReference "lottie-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FF844EFF2CD8CD2A00FA0F6E /* Products */;
@@ -356,6 +360,14 @@
 				minimumVersion = 1.1.0;
 			};
 		};
+		FFDD06932CDEA55900A1E690 /* XCRemoteSwiftPackageReference "lottie-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -363,6 +375,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FFDD06902CDCB26400A1E690 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */;
 			productName = ConfettiSwiftUI;
+		};
+		FFDD06942CDEA55900A1E690 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FFDD06932CDEA55900A1E690 /* XCRemoteSwiftPackageReference "lottie-spm" */;
+			productName = Lottie;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
